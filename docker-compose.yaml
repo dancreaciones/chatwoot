@@ -10,9 +10,9 @@ services:
         EXECJS_RUNTIME: 'Node'
         RAILS_ENV: 'development'
         RAILS_SERVE_STATIC_FILES: 'false'
+    image: chatwoot:development
     tty: true
     stdin_open: true
-    image: chatwoot:development
     env_file: .env
 
   rails:
@@ -20,19 +20,19 @@ services:
     build:
       context: .
       dockerfile: ./docker/dockerfiles/rails.Dockerfile
-    image: chatwoot-rails:development
+    depends_on:
+      - base
+      - postgres
+      - redis
+      - vite
+      - mailhog
+      - sidekiq
     volumes:
       - ./:/app:delegated
       - node_modules:/app/node_modules
       - packs:/app/public/packs
       - cache:/app/tmp/cache
       - bundle:/usr/local/bundle
-    depends_on:
-      - postgres
-      - redis
-      - vite
-      - mailhog
-      - sidekiq
     ports:
       - 3000:3000
     env_file: .env
@@ -45,17 +45,20 @@ services:
 
   sidekiq:
     <<: *base
-    image: chatwoot-rails:development
+    build:
+      context: .
+      dockerfile: ./docker/dockerfiles/rails.Dockerfile
+    depends_on:
+      - base
+      - postgres
+      - redis
+      - mailhog
     volumes:
       - ./:/app:delegated
       - node_modules:/app/node_modules
       - packs:/app/public/packs
       - cache:/app/tmp/cache
       - bundle:/usr/local/bundle
-    depends_on:
-      - postgres
-      - redis
-      - mailhog
     environment:
       - NODE_ENV=development
       - RAILS_ENV=development
@@ -67,6 +70,8 @@ services:
       context: .
       dockerfile: ./docker/dockerfiles/vite.Dockerfile
     image: chatwoot-vite:development
+    depends_on:
+      - base
     volumes:
       - ./:/app:delegated
       - node_modules:/app/node_modules
@@ -92,7 +97,7 @@ services:
     environment:
       - POSTGRES_DB=chatwoot
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=
+      - POSTGRES_PASSWORD=postgres
 
   redis:
     image: redis:alpine
