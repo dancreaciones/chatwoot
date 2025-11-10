@@ -10,28 +10,49 @@ Rails.application.configure do
   config.action_mailer.perform_deliveries = true
   config.action_mailer.raise_delivery_errors = true
 
-  # Config related to smtp
-  smtp_settings = {
-    address: ENV.fetch('SMTP_ADDRESS', 'localhost'),
-    port: ENV.fetch('SMTP_PORT', 587)
-  }
+  # Config related to Zoho Mailer (alternative to SMTP when ports are blocked)
+  if ENV['ZOHO_CLIENT_ID'].present? && ENV['ZOHO_CLIENT_SECRET'].present? && ENV['ZOHO_REFRESH_TOKEN'].present?
+    require 'zoho_mailer'
+    require 'action_mailer/delivery_methods/zoho'
 
-  smtp_settings[:authentication] = ENV.fetch('SMTP_AUTHENTICATION', 'login').to_sym if ENV['SMTP_AUTHENTICATION'].present?
-  smtp_settings[:domain] = ENV['SMTP_DOMAIN'] if ENV['SMTP_DOMAIN'].present?
-  smtp_settings[:user_name] = ENV.fetch('SMTP_USERNAME', nil)
-  smtp_settings[:password] = ENV.fetch('SMTP_PASSWORD', nil)
-  smtp_settings[:enable_starttls_auto] = ActiveModel::Type::Boolean.new.cast(ENV.fetch('SMTP_ENABLE_STARTTLS_AUTO', true))
-  smtp_settings[:openssl_verify_mode] = ENV['SMTP_OPENSSL_VERIFY_MODE'] if ENV['SMTP_OPENSSL_VERIFY_MODE'].present?
-  smtp_settings[:ssl] = ActiveModel::Type::Boolean.new.cast(ENV.fetch('SMTP_SSL', true)) if ENV['SMTP_SSL']
-  smtp_settings[:tls] = ActiveModel::Type::Boolean.new.cast(ENV.fetch('SMTP_TLS', true)) if ENV['SMTP_TLS']
-  smtp_settings[:open_timeout] = ENV['SMTP_OPEN_TIMEOUT'].to_i if ENV['SMTP_OPEN_TIMEOUT'].present?
-  smtp_settings[:read_timeout] = ENV['SMTP_READ_TIMEOUT'].to_i if ENV['SMTP_READ_TIMEOUT'].present?
+    zoho_settings = {
+      client_id: ENV['ZOHO_CLIENT_ID'],
+      client_secret: ENV['ZOHO_CLIENT_SECRET'],
+      refresh_token: ENV['ZOHO_REFRESH_TOKEN'],
+      from_email: ENV['ZOHO_FROM_EMAIL'] || ENV['MAILER_SENDER_EMAIL'],
+      token_url: ENV['ZOHO_TOKEN_URL'],
+      mail_api_url: ENV['ZOHO_MAIL_API_URL'],
+      token_store: ENV['ZOHO_TOKEN_STORE'] || 'file',
+      token_file_path: ENV['ZOHO_TOKEN_FILE_PATH'] || Rails.root.join('tmp', 'zoho_token.json').to_s,
+      timeout: ENV['ZOHO_TIMEOUT'] || 30
+    }.compact
 
-  config.action_mailer.delivery_method = :smtp unless Rails.env.test?
-  config.action_mailer.smtp_settings = smtp_settings
+    config.action_mailer.delivery_method = :zoho unless Rails.env.test?
+    config.action_mailer.zoho_settings = zoho_settings
+  else
+    # Config related to smtp
+    smtp_settings = {
+      address: ENV.fetch('SMTP_ADDRESS', 'localhost'),
+      port: ENV.fetch('SMTP_PORT', 587)
+    }
 
-  # Use sendmail if using postfix for email
-  config.action_mailer.delivery_method = :sendmail if ENV['SMTP_ADDRESS'].blank?
+    smtp_settings[:authentication] = ENV.fetch('SMTP_AUTHENTICATION', 'login').to_sym if ENV['SMTP_AUTHENTICATION'].present?
+    smtp_settings[:domain] = ENV['SMTP_DOMAIN'] if ENV['SMTP_DOMAIN'].present?
+    smtp_settings[:user_name] = ENV.fetch('SMTP_USERNAME', nil)
+    smtp_settings[:password] = ENV.fetch('SMTP_PASSWORD', nil)
+    smtp_settings[:enable_starttls_auto] = ActiveModel::Type::Boolean.new.cast(ENV.fetch('SMTP_ENABLE_STARTTLS_AUTO', true))
+    smtp_settings[:openssl_verify_mode] = ENV['SMTP_OPENSSL_VERIFY_MODE'] if ENV['SMTP_OPENSSL_VERIFY_MODE'].present?
+    smtp_settings[:ssl] = ActiveModel::Type::Boolean.new.cast(ENV.fetch('SMTP_SSL', true)) if ENV['SMTP_SSL']
+    smtp_settings[:tls] = ActiveModel::Type::Boolean.new.cast(ENV.fetch('SMTP_TLS', true)) if ENV['SMTP_TLS']
+    smtp_settings[:open_timeout] = ENV['SMTP_OPEN_TIMEOUT'].to_i if ENV['SMTP_OPEN_TIMEOUT'].present?
+    smtp_settings[:read_timeout] = ENV['SMTP_READ_TIMEOUT'].to_i if ENV['SMTP_READ_TIMEOUT'].present?
+
+    config.action_mailer.delivery_method = :smtp unless Rails.env.test?
+    config.action_mailer.smtp_settings = smtp_settings
+
+    # Use sendmail if using postfix for email
+    config.action_mailer.delivery_method = :sendmail if ENV['SMTP_ADDRESS'].blank?
+  end
 
   # You can use letter opener for your local development by setting the environment variable
   config.action_mailer.delivery_method = :letter_opener if Rails.env.development? && ENV['LETTER_OPENER']
