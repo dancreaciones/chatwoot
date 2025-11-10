@@ -19,7 +19,11 @@ class ApplicationMailer < ActionMailer::Base
   rescue_from(*ExceptionList::SMTP_EXCEPTIONS, with: :handle_smtp_exceptions)
 
   def smtp_config_set_or_development?
-    ENV.fetch('SMTP_ADDRESS', nil).present? || Rails.env.development?
+    zoho_configured? || ENV.fetch('SMTP_ADDRESS', nil).present? || Rails.env.development?
+  end
+
+  def zoho_configured?
+    ENV['ZOHO_CLIENT_ID'].present? && ENV['ZOHO_CLIENT_SECRET'].present? && ENV['ZOHO_REFRESH_TOKEN'].present?
   end
 
   private
